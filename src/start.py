@@ -6,24 +6,24 @@ from typing import Tuple
 
 from dotenv import load_dotenv
 
+import exceptions
 from pars_habr import rss_parse_feed
-from chat_gpt import generate_chat_completion
+from chat_gpt_v2 import ChatGenerator
 from vk_api import vk_wall_post
-from tel_bot_error import send_telegram_message
+from telegram_message import send_telegram_message
 
 load_dotenv()
 api_key: str = os.getenv("AI_TOKEN")
 vk_token: str = os.getenv("VK_TOKEN")
-group_id: int = int(os.getenv("GROUP_ID"))
+group_id: str = os.getenv("GROUP_ID")
 bot_token: str = os.getenv("BOT_TOKEN")
 chat_id: str = os.getenv("CHAT_ID")
 
-# Отправит сообщение через get запрос в телеграмм
-RETRY_PERIOD: int = 30
+RETRY_PERIOD: int = 1800
 
 
 def check_tokens() -> None:
-    """Проверяем наличие токенов."""
+    """Tokens check."""
     tokens = {
         "api_key": api_key,
         "vk_token": vk_token,
@@ -38,14 +38,14 @@ def check_tokens() -> None:
 
 
 def get_post() -> Tuple[str, str]:
-    """Получение поста."""
-    logging.info("Попытка получение поста.")
+    """Getting post."""
+    logging.info("Trying to get post.")
     try:
         text = rss_parse_feed()
-        logging.debug(f"Пост успешно получен.")
+        logging.debug(f"Post is changed successfully.")
         return text
-    except Exception as error:
-        logging.error(f"Произошла ошибка при получении поста {error}")
+    except exceptions.PostGettingException as error:
+        logging.error(f"An error occurred while receiving post {error}")
         raise
 
 
@@ -53,56 +53,59 @@ def text_to_ai(
     text: str,
     api_key: str = api_key,
     humor: bool = True,
-    style: bool = False,
+    style: bool = True,
 ) -> str:
-    """Преобразование текста."""
-    logging.info("Попытка преобразования текста.")
+    """Text transformation."""
+    logging.info("Trying to convert text.")
     try:
-        modified_text = generate_chat_completion(
+        generator = ChatGenerator(api_key=api_key)
+        modified_text = generator.generate_completion(
             text,
-            api_key=api_key,
             humor=humor,
             style=style,
         )
-        logging.debug(f"Текст успешно изменен.")
+        logging.debug(f"Text is converted successfully.")
         return modified_text
-    except Exception as error:
-        logging.error(f"Произошла ошибка при преобразовании текста {error}")
+    except exceptions.TextConvertException as error:
+        logging.error(f"An error occurred while converting text {error}")
         raise
 
 
 def post_to_vk(
     message: str,
     vk_token: str = vk_token,
-    group_id: int = group_id,
+    group_id: int = int(group_id),
 ) -> int:
-    """Публикация поста."""
-    logging.info("Попытка публикации поста.")
+    """Publish a post."""
+    logging.info("Trying to publish a post.")
     try:
         response = vk_wall_post(
             token=vk_token, message=message, group_id=int(group_id)
         )
-        logging.debug(f"Пост успешно опубликован.")
+        logging.debug(f"Post successfully published.")
         return response
-    except Exception as error:
-        logging.error(f"Произошла ошибка при публикации поста {error}")
+    except exceptions.PostException as error:
+        logging.error(f"An error occurred while publishing post{error}")
         raise
+
+
 def main():
-    """Основная логика работы бота."""
+    """Base logic."""
     check_tokens()
-    post_titles = []
+    post_titles = set()
     while True:
         try:
-            title, post = get_post()
+            item_data = get_post()
+            title, post = item_data.title, item_data.data
             if title not in post_titles:
-                post_titles.append(title)
+                post_titles.add(title)
                 text = text_to_ai(post)
                 post_to_vk(text)
             else:
-                logging.info("Новые посты не найдены.")
+                logging.info("New posts are not found.")
         except Exception as error:
             logging.exception(error)
-            message = f"Сбой в работе программы: {error}"
+            message = f"Program crash: {error}"
             send_telegram_message(
                 bot_token=bot_token, chat_id=chat_id, message=message
             )

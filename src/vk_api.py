@@ -12,5 +12,6 @@ def vk_wall_post(token: str, message: str, group_id: int) -> int:
             "message": message,
             "v": "5.131",
         },
+        timeout=10,
     )
     return response.status_code
