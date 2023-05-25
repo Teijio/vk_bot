@@ -1,7 +1,7 @@
 # Description
 
 app contains 4 modules:
-1. parser
+1. parser.
 Parsing the info from source
 2. chatgpt api
 Converting info in what do we like
