@@ -15,7 +15,7 @@ from telegram_message import send_telegram_message
 load_dotenv()
 api_key: str = os.getenv("AI_TOKEN")
 vk_token: str = os.getenv("VK_TOKEN")
-group_id: str = os.getenv("GROUP_ID")
+group_id: str = os.environ["GROUP_ID"]
 bot_token: str = os.getenv("BOT_TOKEN")
 chat_id: str = os.getenv("CHAT_ID")
 
@@ -96,7 +96,7 @@ def main():
     while True:
         try:
             item_data = get_post()
-            title, post = item_data.title, item_data.data
+            title, post = item_data.title, item_data.data[:100]
             if title not in post_titles:
                 post_titles.add(title)
                 text = text_to_ai(post)

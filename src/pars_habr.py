@@ -21,12 +21,12 @@ def extract_data(text: str) -> str:
 def rss_parse_feed():
     xml = requests.get(URL)
     try:
-        parser = Parser(xml=xml.content, limit=1)
+        parser = Parser(xml=xml.content, limit=2)
         feed = parser.parse()
     except exceptions.ParseStatusException:
         raise
 
-    item = feed.feed[0]
+    item = feed.feed[1]
     data = extract_data(item.description)
     item_data = ItemData(title=item.title, data=data)
 
